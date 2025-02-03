@@ -14,22 +14,31 @@ def connect_db():
 def add_student(name, encoding):
     with connect_db() as conn:
         with conn.cursor() as cur:
-            # Serialize the face encoding for storage
             encoded_data = pickle.dumps(encoding)
             cur.execute("INSERT INTO students (name, encoding) VALUES (%s, %s) RETURNING id", (name, encoded_data))
             student_id = cur.fetchone()[0]
             conn.commit()
             return student_id
 
+def update_student_encoding(student_id, encoding):
+    with connect_db() as conn:
+        with conn.cursor() as cur:
+            encoded_data = pickle.dumps(encoding)
+            cur.execute("UPDATE students SET encoding = %s WHERE id = %s", (encoded_data, student_id))
+            conn.commit()
+
+def get_student_by_name(name):
+    with connect_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM students WHERE name = %s", (name,))
+            result = cur.fetchone()
+            return result[0] if result else None
+
 def get_student_encodings():
     with connect_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id, encoding FROM students")
-            students = {}
-            for row in cur.fetchall():
-                if row[1] is not None:
-                    # Deserialize the encoding to use in face recognition
-                    students[row[0]] = pickle.loads(row[1])
+            students = {row[0]: pickle.loads(row[1]) for row in cur.fetchall() if row[1] is not None}
             return students
 
 def log_attendance(student_id):
